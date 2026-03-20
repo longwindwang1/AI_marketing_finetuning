@@ -1,0 +1,55 @@
+# ============================================
+# QLoRA Fine-Tuning 配置 - 短视频广告流量分析
+# 适配 RTX 5070 (12GB VRAM)
+# ============================================
+
+# 模型配置
+model:
+  base_model: "Qwen/Qwen2.5-7B-Instruct"
+  torch_dtype: "bfloat16"
+
+# QLoRA 配置
+qlora:
+  r: 32                    # LoRA rank（降低以节省内存，64→32）
+  lora_alpha: 64           # LoRA alpha (通常为 rank 的 2 倍)
+  lora_dropout: 0.05
+  target_modules:          # 要注入 LoRA 的层
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  quantization_bits: 4     # 4-bit NF4 量化
+
+# 训练超参数
+training:
+  output_dir: "./output"
+  num_train_epochs: 1               # 测试时 1 epoch，正式训练改为 3
+  per_device_train_batch_size: 1     # 测试时 batch=1，正式训练改为 2
+  gradient_accumulation_steps: 2     # 测试时 2，正式训练改为 8
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  max_seq_length: 512                # 测试时 512 节省内存，正式训练改为 1024-2048
+  logging_steps: 1
+  save_steps: 100
+  save_total_limit: 3
+  eval_strategy: "steps"
+  eval_steps: 100
+  bf16: true
+  gradient_checkpointing: true       # 节省显存
+  optim: "paged_adamw_8bit"          # 8-bit 优化器节省显存
+  dataloader_num_workers: 0          # Windows 下先用 0 避免多进程问题
+  report_to: "none"                  # 测试时关闭 wandb，正式训练改为 "wandb"
+
+# 数据配置
+data:
+  train_file: "../data/processed/train.jsonl"
+  eval_file: "../data/processed/eval.jsonl"
+  system_prompt: |
+    你是一位专业的短视频广告流量分析师。你精通各大短视频平台（抖音、快手、TikTok、视频号等）的广告投放体系，
+    擅长分析广告投放数据、诊断流量问题、优化投放策略、评估素材质量和分析受众特征。
+    请基于数据和专业经验，给出准确、可执行的分析和建议。
